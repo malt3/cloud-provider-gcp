@@ -36,7 +36,7 @@ import (
 	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud"
 	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/filter"
 	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/meta"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -258,10 +258,16 @@ func (g *Cloud) InstanceShutdown(ctx context.Context, node *v1.Node) (bool, erro
 }
 
 func (g *Cloud) nodeAddressesFromInstance(instance *compute.Instance) ([]v1.NodeAddress, error) {
-	if len(instance.NetworkInterfaces) < 1 {
+	nodeAddresses := []v1.NodeAddress{}
+	for _, metadata := range instance.Metadata.Items {
+		if metadata.Key == "constellation-vpn-ip" {
+			nodeAddresses = append(nodeAddresses, v1.NodeAddress{Type: v1.NodeInternalIP, Address: *metadata.Value})
+			break
+		}
+	}
+	if len(instance.NetworkInterfaces) < 1 && len(nodeAddresses) < 1 {
 		return nil, fmt.Errorf("could not find network interfaces for instanceID %q", instance.Id)
 	}
-	nodeAddresses := []v1.NodeAddress{}
 	for _, nic := range instance.NetworkInterfaces {
 		nodeAddresses = append(nodeAddresses, v1.NodeAddress{Type: v1.NodeInternalIP, Address: nic.NetworkIP})
 		for _, config := range nic.AccessConfigs {
@@ -273,10 +279,16 @@ func (g *Cloud) nodeAddressesFromInstance(instance *compute.Instance) ([]v1.Node
 }
 
 func (g *Cloud) nodeAddressesFromAlphaInstance(instance *computealpha.Instance) ([]v1.NodeAddress, error) {
-	if len(instance.NetworkInterfaces) < 1 {
+	nodeAddresses := []v1.NodeAddress{}
+	for _, metadata := range instance.Metadata.Items {
+		if metadata.Key == "constellation-vpn-ip" {
+			nodeAddresses = append(nodeAddresses, v1.NodeAddress{Type: v1.NodeInternalIP, Address: *metadata.Value})
+			break
+		}
+	}
+	if len(instance.NetworkInterfaces) < 1 && len(nodeAddresses) < 1 {
 		return nil, fmt.Errorf("could not find network interfaces for instanceID %q", instance.Id)
 	}
-	nodeAddresses := []v1.NodeAddress{}
 
 	for _, nic := range instance.NetworkInterfaces {
 		nodeAddresses = append(nodeAddresses, v1.NodeAddress{Type: v1.NodeInternalIP, Address: nic.NetworkIP})
@@ -759,7 +771,6 @@ func (g *Cloud) getInstanceByName(name string) (*gceInstance, error) {
 		}
 		return instance, nil
 	}
-
 	return nil, cloudprovider.InstanceNotFound
 }
 

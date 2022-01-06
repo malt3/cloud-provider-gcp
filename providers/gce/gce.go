@@ -703,7 +703,7 @@ func (g *Cloud) Clusters() (cloudprovider.Clusters, bool) {
 
 // Routes returns an implementation of Routes for Google Compute Engine.
 func (g *Cloud) Routes() (cloudprovider.Routes, bool) {
-	return g, true
+	return g, false
 }
 
 // ProviderName returns the cloud provider ID.
